@@ -6,8 +6,7 @@
   "backendUrl": "https://xdx-w5od.onrender.com",
   "port": 3001,
   "gasReserveEth": "0.003",
-  "telegramBotToken": "",
-  "telegramChatId": "",
+  "discordWebhook": "",
   "autosweepIntervalSec": 60,
   "chains": [
     { "name": "ethereum", "chainId": 1, "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/alch_IDzDjsxeI6kub3H5wRQUb", "alchemyKey": "alch_IDzDjsxeI6kub3H5wRQUb" },
